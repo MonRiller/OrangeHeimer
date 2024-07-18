@@ -76,10 +76,16 @@ Can be edited through changing orangeRodent.c and re-cross-compiling and by edit
 - run "python3 stage3.py" to throw the exploit
 ### Possible Failures and Solutions:
 If there is no request made to wget:
-- TODO
+- Cry
+- Verify that the ssh server has proper port forward to thrower box
+- Ask the "man on the inside" to examine what is going wrong on the controller
   
 If there is a request to wget, but the netcat listener never catches the rat:
-- TODO
+- This indicates a problem with the rat
+- Run the exploit using the telnet reverse shell which is currently comment out
+- Peep around to see what could be wrong
   
 If the netcat listener receives the rat, but the rootkit is not up:
-- TODO
+- Use rat to examine what is wrong with rootkit
+- Fix and recompile the rootkit
+- Use rat to send over and install rootkit
