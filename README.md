@@ -58,4 +58,4 @@ The commands execute normally, but no response is received from http://localhost
 - Run "netstat -plant", check if the output contains a TCP listener on 0.0.0.0:4242
 - If the netstat does contain the TCP listener, it indicates that the mastersockets works. Verify that the controller is up and has the correct IP address with the analysts. Then attempt to rerun the first mastersockets command.
 - If the netstat has the TCP listener on 127.0.0.1 instead of 0.0.0.0, then the server is not configured properly. Go through the confiugration remediation steps.
-- If the netstat has no TCP listener on port 4242, then attempt to set up the port forwarding as sudo on the server.
+- If the netstat has no TCP listener on port 4242, or netstat -plant on the thrower has no open TCP listener on 0.0.0.0:4200, then it is a problem with SSH port forwarding. SSH into the server and determine the issue.
