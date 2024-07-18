@@ -45,7 +45,8 @@ For some reason, we cannot SSH from localhost. If this happens:
 - upgrade using python3 -c 'import pty; pty.spawn("/bin/bash")'
 - SSH into server with ssh -Nf missileadmin@localhost
 - run SSH reconfiguration commands and verify success
-- execute port forwarding commands, using 10.0.1.1 instead of 127.0.0.1  
+- execute port forwarding commands, using 10.0.1.1 instead of 127.0.0.1
+  
 An error occurs in the reconfiguration of the SSH server. If this happens:
 - SSH into the server from localhost
 - Check if /etc/ssh/sshd_config has 'GatewayPorts yes' in its last line, if not then sudo su and add it
