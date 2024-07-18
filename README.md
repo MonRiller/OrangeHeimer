@@ -43,7 +43,7 @@ Can be customized by editing stage2.sh
 For some reason, we cannot SSH from localhost. If this happens:
 - run shell in meterpreter
 - upgrade using python3 -c 'import pty; pty.spawn("/bin/bash")'
-- SSH into server with ssh -Nf missileadmin@localhost
+- SSH into the server with ssh -Nf missileadmin@172.31.81.221
 - run SSH reconfiguration commands and verify success
 - execute port forwarding commands, using 10.0.1.1 instead of 127.0.0.1
   
@@ -52,3 +52,10 @@ An error occurs in the reconfiguration of the SSH server. If this happens:
 - Check if /etc/ssh/sshd_config has 'GatewayPorts yes' in its last line, if not then sudo su and add it
 - Restart ssh service, this can be done with "service ssh restart" or "systemctl restart ssh"
 - Continue with normal port forwarding commands
+
+The commands execute normally, but no response is received from http://localhost:4200
+- SSH into the server from localhost
+- Run "netstat -plant", check if the output contains a TCP listener on 0.0.0.0:4242
+- If the netstat does contain the TCP listener, it indicates that the mastersockets works. Verify that the controller is up and has the correct IP address with the analysts. Then attempt to rerun the first mastersockets command.
+- If the netstat has the TCP listener on 127.0.0.1 instead of 0.0.0.0, then the server is not configured properly. Go through the confiugration remediation steps.
+- If the netstat has no TCP listener on port 4242, then attempt to set up the port forwarding as sudo on the server.
