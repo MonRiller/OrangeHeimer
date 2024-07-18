@@ -76,8 +76,10 @@ Can be edited through changing orangeRodent.c and re-cross-compiling and by edit
 - run "python3 stage3.py" to throw the exploit
 ### Possible Failures and Solutions:
 If there is no request made to wget:
-- TODO  
+- TODO
+  
 If there is a request to wget, but the netcat listener never catches the rat:
-- TODO  
+- TODO
+  
 If the netcat listener receives the rat, but the rootkit is not up:
 - TODO
