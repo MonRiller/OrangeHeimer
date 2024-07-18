@@ -5,19 +5,19 @@
 ### Objective
 Exploit web server and set up connection to internal relay SSH
 ### Files:
-- orangeland.py	– metasploit module
-- stage1.rc – metasploit rc file
+- orangeland.py
+- stage1.rc
 ### IPs and Ports:
 All can be customized in stage1.rc file
-- thrower box	10.0.1.21:4444
-- oranco Web	10.0.1.1:8443
-- thrower SSH	127.0.0.1:22
-- relay SSH	172.31.82.221:22
+- thrower box 10.0.1.21:4444
+- oranco Web 10.0.1.1:8443
+- thrower SSH 127.0.0.1:22
+- relay SSH 172.31.82.221:22
 ### How to Run:
 - chmod +x orangeland.py
 - move orangeland.py into metasploit-framework/embedded/framework/modules/exploits/unix/webapp/
 - msfconsole -r exploit.rc -- may need to be run with sudo
-### Possible Failures:
+### Possible Failures and Solutions:
 Orangeland.py has been tested on multiple ops and should work, if it doesn’t, then verbally harass the analysts.  
 Portfwd add is the only new command, if this fails:
 - verify that the SSH server is running at the IP and port as indicated, if they are different, re run the portfwd command with -p <SSH_PORT> -r <SSH_IP>
@@ -28,3 +28,26 @@ Portfwd add is the only new command, if this fails:
 Set up direct communication between orangeland and device controller using SSH port forwarding
 ### Files:
 - stage2.sh
+### IPs and Ports
+Can be customized by editing stage2.sh
+- thorwer SSH 127.0.0.1:22
+- relay SSH 172.31.82.221:22
+- thorwer -> controller port forward 127.0.0.1:4200 -> 172.31.86.120:8080
+- first relay SSH -> thrower port forward (from controller) 172.100.0.1:4242 -> 127.0.0.1:4201
+- second relay SSH -> thrower port forward (from controller) 172.100.0.1:4243 -> 127.0.0.1:4202
+### How to Run:
+- run and verify stage 1
+- ./stage2.sh
+- verify success by opening http://localhost:4200 in web browser, it should return "Forbidden"
+### Possible Failures and Solutions:
+For some reason, we cannot SSH from localhost. If this happens:
+- run shell in meterpreter
+- upgrade using python3 -c 'import pty; pty.spawn("/bin/bash")'
+- SSH into server with ssh -Nf missileadmin@localhost
+- run SSH reconfiguration commands and verify success
+- execute port forwarding commands, using 10.0.1.1 instead of 127.0.0.1
+An error occurs in the reconfiguration of the SSH server. If this happens:
+- SSH into the server from localhost
+- Check if /etc/ssh/sshd_config has 'GatewayPorts yes' in its last line, if not then sudo su and add it
+- Restart ssh service, this can be done with "service ssh restart" or "systemctl restart ssh"
+- Continue with normal port forwarding commands
