@@ -3,12 +3,12 @@
 ![Orangeland Op Plan](https://github.com/user-attachments/assets/509ea69d-9de2-4575-a09f-db2846e0078a)
 ## Stage 1: Oranco Mining Web Server Exploitation
 ### Objective
-- exploit web server and set up connection to internal relay SSH
+exploit web server and set up connection to internal relay SSH
 ### Files:
 - orangeland.py	– metasploit module
 - stage1.rc – metasploit rc file
 ### IPs and Ports:
-- all can be customized in stage1.rc file
+all can be customized in stage1.rc file
 - thrower box	10.0.1.21:4444
 - oranco Web	10.0.1.1:8443
 - thrower SSH	127.0.0.1:22
