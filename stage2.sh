@@ -1,4 +1,6 @@
 #!/bin/bash
+# Change the interrupt key to k
+stty intr ^k
 # stage2.sh, sets up port forwarding on the orangeland relay server
 
 # Change ssh server settings to enable port forwarding
