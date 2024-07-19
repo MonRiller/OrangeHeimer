@@ -18,6 +18,7 @@ MODULE_VERSION("0.1");
 
 #ifndef DEBUG
 #define DEBUG 1
+#endif
 #define MAX_NAME 256
 #define ROOTKIT -1877
 #define SENDPID 8008
@@ -25,7 +26,6 @@ MODULE_VERSION("0.1");
 #define CHECKUP 80085
 #define GOODRET 42
 #define HIDEFILE 1234
-#endif
 /* A simple debug print macro that will be compiled out if not defined */
   /* https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c */
 #define debug_print(fmt, args...)\
