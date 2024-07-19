@@ -34,10 +34,10 @@ MODULE_VERSION("0.1");
 #define MAX_NAME 256
 
 
-//typedef asmlinkage long (*orig_ioctl_t)(const struct pt_regs *);
+typedef asmlinkage long (*orig_ioctl_t)(const struct pt_regs *);
 typedef asmlinkage int (*orig_getdents64_t)(const struct pt_regs *);
 
-//orig_ioctl_t orig_ioctl;
+orig_ioctl_t orig_ioctl;
 orig_getdents64_t orig_getdents64;
 
 bool gotime = false;
