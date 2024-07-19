@@ -21,7 +21,7 @@ All can be customized in stage1.rc file
 Orangeland.py has been tested on multiple ops and should work, if it doesn’t, then verbally harass the analysts.  
 If portfwd fails:
 - verify that the SSH server is running at the IP and port as indicated, if they are different, re run the portfwd command with -p <SSH_PORT> -r <SSH_IP>
-- run "shell" in meterpreter, upgrade using "python3 -c 'import pty; pty.spawn("/bin/bash")'", and verify that the SSH credentials work
+- run "shell" in meterpreter, upgrade using "python -c 'import pty; pty.spawn("/bin/bash")'", and verify that the SSH credentials work
 - run the portfwd command with a different thrower port using -l <THROW_PORT> Note, this means that all future SSH commands cannot use sshpass and must use -p <THROW_PORT>  
 ## Stage 2: Setting up Network Communication
 ### Objective
