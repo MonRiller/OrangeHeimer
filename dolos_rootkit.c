@@ -243,10 +243,6 @@ static void map_regions(void) {
   return;
 }
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
 {
 
@@ -327,10 +323,6 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
 	
 }
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 4e261d6ee82894ba840aacf35e891089fc37f7ca
 struct ftrace_ops ops = {
     .func = dolos_ftrace_stub,
     .flags = FTRACE_OPS_FL_SAVE_REGS | FTRACE_OPS_FL_RECURSION | FTRACE_OPS_FL_IPMODIFY
