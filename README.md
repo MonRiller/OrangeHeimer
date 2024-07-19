@@ -16,7 +16,7 @@ All can be customized in stage1.rc file
 ### How to Run:
 - run "chmod +x orangeland.py"
 - move orangeland.py into metasploit-framework/embedded/framework/modules/exploits/unix/webapp/
-- run "msfconsole -r exploit.rc" -- this may need to be run with sudo depending on computer configs
+- run "msfconsole -r stage1.rc" -- this may need to be run with sudo depending on computer configs
 ### Possible Failures and Solutions:
 Orangeland.py has been tested on multiple ops and should work, if it doesn’t, then verbally harass the analysts.  
 If portfwd fails:
